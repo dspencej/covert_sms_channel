@@ -24,6 +24,7 @@ ser = None
 rec_buff = b''
 lock = threading.Lock()
 stop_event = threading.Event()
+notified_of_call = False
 
 def power_on(power_key):
     """
@@ -287,7 +288,8 @@ def display_menu():
     print("5. Display All Saved Messages")
     print("6. Display Unread Messages")
     print("7. Make Phone Call")
-    print("8. Exit")
+    print("8. Manage Incoming Call")
+    print("9. Exit")
     print("============================================")
     print("Enter your choice:")
 
@@ -355,13 +357,12 @@ def handle_notifications(notification):
         None
     """
     if "RING" in notification:
-        print("Incoming call detected.")
-        print("Enter 'a' to answer the call or anything else to decline.")
-        inp = input()
-        if inp =='a':
-            send_at("ATA","Ok",1)
-        else:
-            send_at("ATH","OK",1)
+        if not notified_of_call:
+            print("Incoming call detected.")
+            play_sound("ping.wav")
+            notified_of_call = True
+            
+
                 
     elif "+CMTI" in notification:
         print("New text message received.")
@@ -391,8 +392,7 @@ def check_for_notifications():
             lines = rec_buff.decode().split('\r\n')
             
             for line in lines:
-                with lock:
-                    handle_notifications(line)
+                handle_notifications(line)
             time.sleep(1)
 
 def initiate_phone_call(phone_number):
@@ -421,6 +421,19 @@ def initiate_phone_call(phone_number):
             # Switch to speaker
             send_at("AT+CSDVC=3","OK",1)
             break
+
+def manage_incoming_call():
+    # Setup phone
+    # Set volume level to 3
+    send_at("AT+CLVL=3","OK",1)
+    # Switch to headphones
+    send_at("AT+CSDVC=1","OK",1)
+    print("Enter 'a' to answer the call or anything else to decline.")
+    inp = input()
+    if inp =='a':
+        send_at("ATA","OK",1)
+    else:
+        send_at("ATH","OK",1)
 
 def main():
     """
@@ -468,6 +481,8 @@ def main():
                 phone_number = input()
                 initiate_phone_call(phone_number)
             elif choice == '8':
+                manage_incoming_call()
+            elif choice == '9':
                 stop_event.set()
                 message_thread.join()
                 power_down(int(POWER_KEY))
