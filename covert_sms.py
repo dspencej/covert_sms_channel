@@ -385,6 +385,9 @@ def handle_notifications(notification):
         elif "+CMTI" not in notification:
             # No new text message. Reset the flag.
             user_notified_of_text = False
+            
+        if "RING" not in notification:
+            incoming_call = False
         
 def play_sound(sound_file):
     pygame.mixer.init()
