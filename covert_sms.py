@@ -24,7 +24,10 @@ ser = None
 rec_buff = b''
 lock = threading.Lock()
 stop_event = threading.Event()
-notified_of_call = False
+user_notified_of_call = False
+incoming_call = False
+phonecall_in_progress = False
+outgoing_call = False
 
 def power_on():
     """
@@ -290,9 +293,8 @@ def display_menu():
     print("4. Delete All Messages")
     print("5. Display All Saved Messages")
     print("6. Display Unread Messages")
-    print("7. Make Phone Call")
-    print("8. Manage Incoming Call")
-    print("9. Exit")
+    print("7. Manage Phone Calls")
+    print("8. Exit")
     print("============================================")
     print("Enter your choice:")
 
@@ -359,27 +361,23 @@ def handle_notifications(notification):
     Returns:
         None
     """
-    global notified_of_call
-    if "RING" in notification:
-        if not notified_of_call:
+    # Only process notifications if there is no ongoing phonecall
+    global user_notified_of_call, phonecall_in_progress, rec_buff, incoming_call
+    if not phonecall_in_progress:
+        # only notify the user once per incoming call.
+        if "RING" in notification and not user_notified_of_call:
             print("Incoming call detected.")
             play_sound("ping.wav")
             notified_of_call = True
-        else:
-            pass
-                
-    elif "+CMTI" in notification:
-        print("New text message received.")
-        send_at('AT+CMGF=1', 'OK', 1)
-        send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
-        send_at('AT+CMGL="REC UNREAD"', 'OK', 1)
-        play_sound("ping.wav")
-    
-    else:
-        notified_of_call = False
-    
-    
-
+            incoming_call = True
+            rec_buff = b''
+        # The call has ended. Reset notification flag.
+        elif not incoming_call:
+            user_notified_of_call = False
+                    
+        if "+CMTI" in notification and not incoming_call:
+            print("New text message received.")
+            play_sound("ping.wav")
         
 def play_sound(sound_file):
     pygame.mixer.init()
@@ -414,35 +412,83 @@ def initiate_phone_call(phone_number):
     Returns:
         None
     """
-    # Setup phone
-    # Set volume level to 3
-    send_at("AT+CLVL=3","OK",1)
-    # Switch to headphones
-    send_at("AT+CSDVC=1","OK",1)
-    # Start the call
-    send_at('ATD'+phone_number+';','OK',1)
-    print("Calling " + str(phone_number) + ". Press 'h' to hangup.")
-    while True:
-        inp = input()
-        if (inp == 'h'):
-            # End the call
-            send_at("ATH","OK",1)
-            # Switch to speaker
-            send_at("AT+CSDVC=3","OK",1)
-            break
 
-def manage_incoming_call():
-    # Setup phone
-    # Set volume level to 3
-    send_at("AT+CLVL=3","OK",1)
-    # Switch to headphones
-    send_at("AT+CSDVC=1","OK",1)
-    print("Enter 'a' to answer the call or anything else to decline.")
-    inp = input()
-    if inp =='a':
-        send_at("ATA","OK",1)
+
+
+def manage_calls():
+    global phonecall_in_progress, incoming_call, outgoing_call
+    # New incoming phone call.
+    if incoming_call and not phonecall_in_progress:
+        inp = ''
+        while inp != 'y' and inp != 'n':
+            print("Answer incoming call? [y/n]: ")
+            inp = input()
+            if inp =='y':
+                print("Okay, answering the call.")
+                # Setup phone
+                # Set volume level to 3
+                send_at("AT+CLVL=3","OK",1)
+                # Switch to headphones
+                send_at("AT+CSDVC=1","OK",1)
+                send_at("ATA","OK",1)
+                phonecall_in_progress = True
+                incoming_call = False
+            elif inp == 'n':
+                print("Declining the phone call.")
+                send_at("AT+CHUP","OK",1)
+            
+    # Ongoing phone call
+    elif phonecall_in_progress:
+        inp = ''
+        while inp != 'y' and inp != 'n':
+            print("Hang up ongoing call? [y/n]: ")
+            inp = input()
+            if inp == 'y':
+                print("Okay, hanging up.")
+                send_at("AT+CHUP","OK",1)
+                send_at("AT+CSDVC=3","OK",1)
+                phonecall_in_progress = False
+            elif inp == 'n':
+                print("Okay, returning to main menu.")
+            
+    # Am I calling someone?
+    elif outgoing_call:
+        inp = ''
+        while inp != 'y' and inp != 'n':
+            print("Cancel outgoing phone call? [y/n]: ")
+            inp = input()
+            if inp == 'y':
+                print("Okay, hanging up.")
+                send_at("ATH","OK",1)
+                outgoing_call = False
+            elif inp == 'n':
+                print("Okay, returning to main menu.")
+            
     else:
-        send_at("ATH","OK",1)
+        # No incoming or ongoing phone calls.
+        # Initiate new call?
+        inp = ''
+        while inp != 'y' and inp != 'n':
+            print("Would you like to make an outgoing phone call? [y/n]: ")
+            inp = input()
+            if inp == 'y':
+                print("Enter recipient's phone number (e.g., +123456789): ")
+                phone_number = input()
+                outgoing_call = True
+                print("Calling " + str(phone_number) + ".")
+                # Setup phone
+                # Set volume level to 3
+                send_at("AT+CLVL=3","OK",1)
+                # Switch to headphones
+                send_at("AT+CSDVC=1","OK",1)
+                # Start the call
+                send_at('ATD'+phone_number+';','OK',1)
+            elif inp == 'n':
+                print("Okay, returning to main menu.")
+                
+    
+            
+    
 
 def main():
     """
@@ -486,12 +532,8 @@ def main():
             elif choice == '6':
                 show_unread_messages()
             elif choice == '7':
-                print("Enter recipient's phone number (e.g., +123456789):")
-                phone_number = input()
-                initiate_phone_call(phone_number)
+                manage_calls()
             elif choice == '8':
-                manage_incoming_call()
-            elif choice == '9':
                 stop_event.set()
                 message_thread.join()
                 power_down()
