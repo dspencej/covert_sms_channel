@@ -360,7 +360,6 @@ def handle_notifications(notification):
     if "RING" in notification:
         if not notified_of_call:
             print("Incoming call detected.")
-            send_at("AT+CLIP?","OK",1)
             play_sound("ping.wav")
             notified_of_call = True
         else:
@@ -372,9 +371,12 @@ def handle_notifications(notification):
         send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
         send_at('AT+CMGL="REC UNREAD"', 'OK', 1)
         play_sound("ping.wav")
-        
+    
     else:
         notified_of_call = False
+    
+    
+
         
 def play_sound(sound_file):
     pygame.mixer.init()
@@ -394,11 +396,11 @@ def check_for_notifications():
     global rec_buff
     global ser
     while not stop_event.is_set():
-            rec_buff += ser.read(ser.inWaiting())
-            lines = rec_buff.decode().split('\r\n')
-            for line in lines:
-                handle_notifications(line)
-            time.sleep(1)
+        rec_buff += ser.read(ser.inWaiting())
+        lines = rec_buff.decode().split('\r\n')
+        for line in lines:
+            handle_notifications(line)
+        time.sleep(1)
 
 def initiate_phone_call(phone_number):
     """
