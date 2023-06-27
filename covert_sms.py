@@ -9,6 +9,7 @@ import configparser
 import sys
 import os
 
+
 # Constants
 POWER_KEY = None
 MY_NUMBER = None
@@ -20,6 +21,7 @@ SERIAL_DEVICE = None
 ser = None
 rec_buff = ''
 lock = threading.Lock()
+stop_event = threading.Event()
 
 def power_on(power_key):
     """
@@ -317,6 +319,25 @@ def read_config():
 
     return config_params
 
+def check_for_new_message():
+    """
+    Checks for the "+CMTI" notification to notify the user of a new SMS message.
+    
+    Args:
+        None
+    
+    Returns:
+        None
+    """
+    global rec_buff
+    while not stop_event.is_set():
+        with lock:
+            if ("+CMTI" in rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff):
+                print("New SMS message received!")
+                index = (rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff).split[','][1]
+                print("Message index: ", index)
+                send_at("AT+CMGR="+index,"OK",2)
+        time.sleep(0.1)
 
 def main():
     """
@@ -330,6 +351,8 @@ def main():
     """
     try:
         init()     
+        message_thread = threading.Thread(target=check_for_new_message)
+        message_thread.start()
         while True:
             with lock:
                 display_menu()
@@ -352,7 +375,9 @@ def main():
                 delete_all_messages()
             elif choice == '5':
                 show_all_messages()
-            elif choice == '6':		
+            elif choice == '6':
+                stop_event.set()
+                message_thread.join()
                 power_down(int(POWER_KEY))
                 break
             else:
