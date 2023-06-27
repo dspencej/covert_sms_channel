@@ -9,6 +9,7 @@ import configparser
 import sys
 import os
 import pygame   
+import re
 
 # Constants
 # Do not make changes here. 
@@ -209,13 +210,13 @@ def get_gps_position():
         if answer == 0:
             answer = 1
             if ',,,,,,,,' in rec_buff.decode():
-                time.sleep(1)
+                time.sleep(2)
                 continue
         else:
             print('Error %d' % answer)
             send_at('AT+CGPS=0', 'OK', 1)
             return False
-        inp = input("Enter 'r' to refresh GPS location (anything else to quit): ")
+        inp = input("Enter 'r' to refresh GPS location (anything else to return to main menu): ")
         if inp == 'r':
             done = False
         else:
@@ -425,6 +426,7 @@ def manage_calls():
             elif inp == 'n':
                 print("Okay, returning to main menu.")
                 incoming_call = False
+                return
             
     # Am I calling someone?
     elif outgoing_call:
@@ -439,6 +441,7 @@ def manage_calls():
                 outgoing_call = False
             elif inp == 'n':
                 print("Okay, returning to main menu.")
+                return
             
     else:
         # Initiate new call?
@@ -451,7 +454,7 @@ def manage_calls():
                 phone_number = input()
                 if phone_number == 'c':
                     print("Returning to main menu.")
-                    break
+                    return
                 else:
                     outgoing_call = True
                     print("Calling " + str(phone_number) + ".")
@@ -464,9 +467,9 @@ def manage_calls():
                     send_at('ATD'+phone_number+';','OK',1)
             elif inp == 'n':
                 print("Okay, returning to main menu.")
+                return
                 
-    
-            
+
     
 
 def main():
@@ -495,7 +498,7 @@ def main():
                 phone_number = input()
                 if phone_number == 'c':
                     print("Returning to main menu.")
-                    break
+                    continue
                 else:
                     print("Enter message content:")
                     text_message = input()
@@ -505,7 +508,7 @@ def main():
                 phone_number = input()
                 if phone_number == 'c':
                     print("Returning to main menu.")
-                    break
+                    continue
                 else:
                     print("Enter message content:")
                     text_message = input()
