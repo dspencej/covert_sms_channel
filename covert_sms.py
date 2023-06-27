@@ -26,44 +26,45 @@ lock = threading.Lock()
 stop_event = threading.Event()
 notified_of_call = False
 
-def power_on(power_key):
+def power_on():
     """
     Powers on the SIM7600X module.
 
     Args:
-        power_key (int): GPIO pin number for the power key.
+        None
 
     Returns:
         None
     """
-    global ser
+    global ser, POWER_KEY, SERIAL_DEVICE
     print('SIM7600X is starting.')
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
-    GPIO.setup(power_key, GPIO.OUT)
+    GPIO.setup(POWER_KEY, GPIO.OUT)
     time.sleep(0.1)
-    GPIO.output(power_key, GPIO.HIGH)
+    GPIO.output(POWER_KEY, GPIO.HIGH)
     time.sleep(2)
-    GPIO.output(power_key, GPIO.LOW)
+    GPIO.output(POWER_KEY, GPIO.LOW)
     time.sleep(20)
     ser = serial.Serial(SERIAL_DEVICE, 115200)
     ser.flushInput()
     print('SIM7600X is ready.')
 
-def power_down(power_key):
+def power_down():
     """
     Powers down the SIM7600X module.
 
     Args:
-        power_key (int): GPIO pin number for the power key.
+        None
 
     Returns:
         None
     """
+    global POWER_KEY
     print('SIM7600X is logging off.')
-    GPIO.output(power_key, GPIO.HIGH)
+    GPIO.output(POWER_KEY, GPIO.HIGH)
     time.sleep(3)
-    GPIO.output(power_key, GPIO.LOW)
+    GPIO.output(POWER_KEY, GPIO.LOW)
     time.sleep(18)
     print('Goodbye')
 
@@ -93,14 +94,14 @@ def init():
     print("Parsing the configuration file.")
     config = read_config()
     global POWER_KEY, MY_NUMBER, IMEI_PHONE, APN_PHONE, SERIAL_DEVICE
-    POWER_KEY = config['power_key']
+    POWER_KEY = int(config['power_key'])
     MY_NUMBER = config['my_number']
     IMEI_PHONE = config['imei_phone']
     APN_PHONE = config['apn_phone']
     SERIAL_DEVICE = config['serial_device']
     print("Configuration settings have been set.")
 
-    power_on(int(POWER_KEY))
+    power_on()
 
     # Setup Command Echo
     send_at("ATE", "OK", 1)
@@ -154,6 +155,7 @@ def send_short_message(phone_number, text_message):
     Returns:
         None
     """
+    global ser
     print("Setting SMS mode...")
     send_at("AT+CMGF=1", "OK", 1)
     print("Sending Short Message")
@@ -193,6 +195,7 @@ def get_gps_position():
     Returns:
         None
     """
+    global rec_buff
     answer = 0
     print('Starting GPS session...')
     send_at('AT+CGPS=1,1', 'OK', 1)
@@ -393,8 +396,7 @@ def check_for_notifications():
     Returns:
         None
     """
-    global rec_buff
-    global ser
+    global rec_buff, ser
     while not stop_event.is_set():
         rec_buff += ser.read(ser.inWaiting())
         lines = rec_buff.decode().split('\r\n')
@@ -492,19 +494,19 @@ def main():
             elif choice == '9':
                 stop_event.set()
                 message_thread.join()
-                power_down(int(POWER_KEY))
+                power_down()
                 break
             else:
                 print("Invalid choice, please try again.\n")
     except KeyboardInterrupt:
         stop_event.set()
         message_thread.join()
-        power_down(int(POWER_KEY))
+        power_down()
     except Exception as e:
         print(str(e))
         stop_event.set()
         message_thread.join()
-        power_down(int(POWER_KEY))
+        power_down()
 
 if __name__ == '__main__':
     main()
