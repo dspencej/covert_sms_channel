@@ -81,6 +81,11 @@ def init():
     print("It assumes that you are running a Raspberry Pi (version 3 or higher)")
     print("with a SIM7600X 4G Hat installed.")
     print("If that is not correct, then this will fail.\n")
+    print("Disclaimer: This software is provided as-is, without any warranties.")
+    print("Use this software at your own risk. The author and contributors")
+    print("shall not be held liable for any damages or losses arising")
+    print("from the use of this software. Please review the documentation")
+    print("for any specific usage guidelines or precautions.\n")
     print("Initializing the SIM7600X.")
 
     # Read configuration
