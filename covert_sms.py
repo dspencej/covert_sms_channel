@@ -25,6 +25,7 @@ rec_buff = b''
 lock = threading.Lock()
 stop_event = threading.Event()
 user_notified_of_call = False
+user_notified_of_text = False
 incoming_call = False
 phonecall_in_progress = False
 outgoing_call = False
@@ -362,22 +363,28 @@ def handle_notifications(notification):
         None
     """
     # Only process notifications if there is no ongoing phonecall
-    global user_notified_of_call, phonecall_in_progress, rec_buff, incoming_call
+    global user_notified_of_call, phonecall_in_progress, rec_buff
+    global user_notified_of_text, incoming_call
     if not phonecall_in_progress:
         # only notify the user once per incoming call.
         if "RING" in notification and not user_notified_of_call:
             print("Incoming call detected.")
             play_sound("ping.wav")
-            notified_of_call = True
+            user_notified_of_call = True
             incoming_call = True
-            rec_buff = b''
-        # The call has ended. Reset notification flag.
-        elif not incoming_call:
+            
+        elif not incoming_call and user_notified_of_call:
+            # Missed the call. Reset flag
             user_notified_of_call = False
-                    
-        if "+CMTI" in notification and not incoming_call:
+            
+        if "+CMTI" in notification and not user_notified_of_text:
             print("New text message received.")
             play_sound("ping.wav")
+            user_notified_of_text = True
+        
+        elif "+CMTI" not in notification:
+            # No new text message. Reset the flag.
+            user_notified_of_text = False
         
 def play_sound(sound_file):
     pygame.mixer.init()
@@ -402,18 +409,6 @@ def check_for_notifications():
             handle_notifications(line)
         time.sleep(1)
 
-def initiate_phone_call(phone_number):
-    """
-    Initiates a phone call to phone_number
-
-    Args:
-        None
-
-    Returns:
-        None
-    """
-
-
 
 def manage_calls():
     global phonecall_in_progress, incoming_call, outgoing_call
@@ -436,6 +431,7 @@ def manage_calls():
             elif inp == 'n':
                 print("Declining the phone call.")
                 send_at("AT+CHUP","OK",1)
+                send_at("AT+CSDVC=3","OK",1)
             
     # Ongoing phone call
     elif phonecall_in_progress:
@@ -450,6 +446,7 @@ def manage_calls():
                 phonecall_in_progress = False
             elif inp == 'n':
                 print("Okay, returning to main menu.")
+                incoming_call = False
             
     # Am I calling someone?
     elif outgoing_call:
@@ -460,12 +457,15 @@ def manage_calls():
             if inp == 'y':
                 print("Okay, hanging up.")
                 send_at("AT+CHUP","OK",1)
+                send_at("AT+CSDVC=3","OK",1)
                 outgoing_call = False
             elif inp == 'n':
                 print("Okay, returning to main menu.")
             
     else:
         # No incoming or ongoing phone calls.
+        outgoing_call = False
+        incoming_call = False
         # Initiate new call?
         inp = ''
         while inp != 'y' and inp != 'n':
