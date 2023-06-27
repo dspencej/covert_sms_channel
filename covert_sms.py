@@ -6,6 +6,8 @@ import serial
 import time
 import threading
 import configparser
+import sys
+import os
 
 # Constants
 POWER_KEY = None
@@ -17,8 +19,7 @@ SERIAL_DEVICE = None
 # Global variables
 ser = None
 rec_buff = ''
-new_message_event = threading.Event()
-send_at_lock = threading.Lock()  # Thread lock for send_at function
+lock = threading.Lock()
 
 def power_on(power_key):
     """
@@ -31,7 +32,7 @@ def power_on(power_key):
         None
     """
     global ser
-    print('SIM7600X is starting:')
+    print('SIM7600X is starting.')
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
     GPIO.setup(power_key, GPIO.OUT)
@@ -42,7 +43,7 @@ def power_on(power_key):
     time.sleep(20)
     ser = serial.Serial(SERIAL_DEVICE, 115200)
     ser.flushInput()
-    print('SIM7600X is ready')
+    print('SIM7600X is ready.')
 
 def power_down(power_key):
     """
@@ -54,7 +55,7 @@ def power_down(power_key):
     Returns:
         None
     """
-    print('SIM7600X is logging off:')
+    print('SIM7600X is logging off.')
     GPIO.output(power_key, GPIO.HIGH)
     time.sleep(3)
     GPIO.output(power_key, GPIO.LOW)
@@ -74,8 +75,8 @@ def init():
     print("This program is designed for a specific use case.")
     print("It assumes that you are running a Raspberry Pi (version 3 or higher)")
     print("with a SIM7600X 4G Hat installed.")
-    print("If that is not correct, then this will fail.")
-    print("Initializing the SIM7600X.\n")
+    print("If that is not correct, then this will fail.\n")
+    print("Initializing the SIM7600X.")
 
     # Read configuration
     print("Parsing the configuration file.")
@@ -93,9 +94,9 @@ def init():
     # Setup Command Echo
     send_at("ATE", "OK", 1)
 
-    print("Setting APN to T-Mobile")
+    print("Setting APN.")
     send_at("AT+CGDCONT=1,\"IP\",\"" + APN_PHONE + "\"", "OK", 2)
-    print("Setting IMEI to Pixel Device")
+    print("Setting IMEI.")
     send_at("AT+SIMEI=" + IMEI_PHONE, "OK", 1)
     print("Device is initialized.\n")
 
@@ -111,7 +112,7 @@ def send_at(command, back, timeout):
     Returns:
         int: 1 if the response is as expected, 0 otherwise.
     """
-    with send_at_lock:
+    with lock:
         global rec_buff
         rec_buff = ''
         ser.write((command+'\r\n').encode())
@@ -119,12 +120,12 @@ def send_at(command, back, timeout):
         if ser.inWaiting():
             time.sleep(0.01 )
             rec_buff = ser.read(ser.inWaiting())
-        if back not in rec_buff.decode():
+        if back not in rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff:
             print(command + ' ERROR')
-            print(command + ' back:\t' + rec_buff.decode())
+            print(command + ' back:\t' + (rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff))
             return 0
         else:
-            print(rec_buff.decode())
+            print(rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff)
             return 1
 
 def SendShortMessage(phone_number, text_message):
@@ -197,6 +198,7 @@ def get_gps_position():
             rec_buff = ''
             send_at('AT+CGPS=0', 'OK', 1)
             return False
+        sleep.wait(1)
         inp = input("Enter 'c' to continue GPS session (anything else to quit): ")
         if inp == 'c':
             done = False
@@ -242,53 +244,6 @@ def show_all_messages():
     send_at('AT+CMGF=1', 'OK', 1)
     send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
     send_at('AT+CMGL="ALL"', 'OK', 1)
-
-def check_for_new_messages():
-    """
-    Checks for new messages by querying the SIM7600X module.
-
-    Args:
-        None
-
-    Returns:
-        bool: True if there are new messages, False otherwise.
-    """
-    # Set message format to text mode
-    if not send_at('AT+CMGF=1', 'OK', 1):
-        return False
-	
-    # Fetch all messages in "REC UNREAD" status
-    if not send_at('AT+CMGL="REC UNREAD"', 'OK', 1):
-        return False
-    
-    # Process the response to determine if there are unread messages
-    response_lines = rec_buff.decode().split('\n')
-    for line in response_lines:
-        if "+CMGLL" in line:
-            return True
-			
-    return False
-	
-def monitor_messages():
-    """
-    Monitors for new messages and displays an alert to the user.
-
-    Args:
-        None
-
-    Returns:
-        None
-    """
-    while not new_message_event.is_set():
-        # Check for new messages
-        new_messages = check_for_new_messages()
-
-        if new_messages:
-            # Display an alert or notification to the user
-            print("You have new messages!")
-
-        # Wait for a while before checking again
-        time.sleep(5)
 
 def display_menu():
     """
@@ -374,12 +329,10 @@ def main():
         None
     """
     try:
-        init()
-        # Create and start the message monitoring thread
-        message_thread = threading.Thread(target=monitor_messages)
-        message_thread.start()        
+        init()     
         while True:
-            display_menu()
+            with lock:
+                display_menu()
             choice = input()
             if choice == '1':
                 print("Enter recipient's phone number (e.g., +123456789):")
@@ -399,9 +352,7 @@ def main():
                 delete_all_messages()
             elif choice == '5':
                 show_all_messages()
-            elif choice == '6':
-                new_message_event.set()
-                message_thread.join()				
+            elif choice == '6':		
                 power_down(int(POWER_KEY))
                 break
             else:
