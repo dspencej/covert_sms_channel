@@ -126,6 +126,9 @@ def send_at(command, back, timeout):
     """
     with lock:
         global rec_buff
+        rec_buff = b''
+        global ser
+        ser.flush()
         ser.write((command+'\r\n').encode())
         time.sleep(timeout)
         if ser.inWaiting():
@@ -189,27 +192,24 @@ def get_gps_position():
     Returns:
         None
     """
-    rec_null = True
     answer = 0
     print('Starting GPS session...')
-    rec_buff = b''
     send_at('AT+CGPS=1,1', 'OK', 1)
     time.sleep(2)
     done = False
-    while rec_null and not done:
+    while not done:
         answer = send_at('AT+CGPSINFO', '+CGPSINFO: ', 1)
         if answer == 1:
             answer = 0
-            if ',,,,,,' in rec_buff.decode():
-                print('GPS is not ready')
-                rec_null = False
+            if ',,,,,,,,' in rec_buff.decode():
                 time.sleep(1)
+                continue
         else:
             print('Error %d' % answer)
             send_at('AT+CGPS=0', 'OK', 1)
             return False
-        inp = input("Enter 'c' to continue GPS session (anything else to quit): ")
-        if inp == 'c':
+        inp = input("Enter 'r' to refresh GPS location (anything else to quit): ")
+        if inp == 'r':
             done = False
         else:
             done = True
