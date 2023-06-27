@@ -78,13 +78,15 @@ def init():
     print("Initializing the SIM7600X.\n")
 
     # Read configuration
+    print("Parsing the configuration file.")
     config = read_config()
     global POWER_KEY, MY_NUMBER, IMEI_PHONE, APN_PHONE, SERIAL_DEVICE
-    POWER_KEY = config['ModuleSettings']['power_key']
-    MY_NUMBER = config['ModuleSettings']['my_number']
-    IMEI_PHONE = config['ModuleSettings']['imei_phone']
-    APN_PHONE = config['ModuleSettings']['apn_phone']
-    SERIAL_DEVICE = config['ModuleSettings']['serial_device']
+    POWER_KEY = config['power_key']
+    MY_NUMBER = config['my_number']
+    IMEI_PHONE = config['imei_phone']
+    APN_PHONE = config['apn_phone']
+    SERIAL_DEVICE = config['serial_device']
+    print("Configuration settings have been set.")
 
     power_on(int(POWER_KEY))
 
@@ -109,7 +111,7 @@ def send_at(command, back, timeout):
     Returns:
         int: 1 if the response is as expected, 0 otherwise.
     """
-    with send_at_lock
+    with send_at_lock:
         global rec_buff
         rec_buff = ''
         ser.write((command+'\r\n').encode())
@@ -324,7 +326,7 @@ def parse_config():
     if 'ModuleSettings' in config:
         module_settings = config['ModuleSettings']
         if 'power_key' in module_settings:
-            parameters['power_key'] = int(module_settings['power_key'])
+            parameters['power_key'] = module_settings['power_key']
         if 'my_number' in module_settings:
             parameters['my_number'] = module_settings['my_number']
         if 'imei_phone' in module_settings:
