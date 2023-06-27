@@ -19,7 +19,7 @@ SERIAL_DEVICE = None
 
 # Global variables
 ser = None
-rec_buff = ''
+rec_buff = b''
 lock = threading.Lock()
 stop_event = threading.Event()
 
@@ -116,21 +116,20 @@ def send_at(command, back, timeout):
     """
     with lock:
         global rec_buff
-        rec_buff = ''
         ser.write((command+'\r\n').encode())
         time.sleep(timeout)
         if ser.inWaiting():
             time.sleep(0.01 )
             rec_buff = ser.read(ser.inWaiting())
-        if back not in rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff:
+        if back not in rec_buff.decode():
             print(command + ' ERROR')
-            print(command + ' back:\t' + (rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff))
+            print(command + ' back:\t' + rec_buff.decode())
             return 0
         else:
-            print(rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff)
+            print(rec_buff.decode())
             return 1
 
-def SendShortMessage(phone_number, text_message):
+def send_short_message(phone_number, text_message):
     """
     Sends a short message in Text Mode.
 
@@ -157,7 +156,7 @@ def SendShortMessage(phone_number, text_message):
     else:
         print('Error %d' % answer)
 
-def SendShortMessagePDU(phone_number, text_message):
+def send_short_message_PDU(phone_number, text_message):
     """
     Sends a short message in PDU Mode.
 
@@ -180,11 +179,10 @@ def get_gps_position():
     Returns:
         None
     """
-    global rec_buff
     rec_null = True
     answer = 0
     print('Starting GPS session...')
-    rec_buff = ''
+    rec_buff = b''
     send_at('AT+CGPS=1,1', 'OK', 1)
     time.sleep(2)
     done = False
@@ -197,7 +195,6 @@ def get_gps_position():
                 time.sleep(1)
         else:
             print('Error %d' % answer)
-            rec_buff = ''
             send_at('AT+CGPS=0', 'OK', 1)
             return False
         sleep.wait(1)
@@ -262,7 +259,8 @@ def display_menu():
     print("3. Get GPS Position")
     print("4. Delete All Messages")
     print("5. Show All Messages")
-    print("6. Exit")
+    print("6. Make Phone Call")
+    print("7. Exit")
     print("Enter your choice:")
 
 
@@ -319,9 +317,34 @@ def read_config():
 
     return config_params
 
-def check_for_new_message():
+def handle_notifications(notification):
     """
-    Checks for the "+CMTI" notification to notify the user of a new SMS message.
+    Handles incoming call and new text message notifications.
+    
+    Args:
+        notification (str): The notification received from the module.
+        
+    Returns:
+        None
+    """
+    if "+CLIP" in notification:
+        print("Incoming call detected.")
+        print("Enter 'a' to answer the call or anything else to decline.")
+        inp = input()
+        if inp =='a':
+            send_at("ATA","Ok",1)
+        else:
+            send_at("AT+CHUP","OK",1)
+                
+    elif "+CMTI" in notification:
+        print("New text message received.")
+        send_at('AT+CMGF=1', 'OK', 1)
+        send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
+        send_at('AT+CMGL="REC UNREAD"', 'OK', 1)
+
+def check_for_notifications():
+    """
+    Checks for new notifications.
     
     Args:
         None
@@ -331,13 +354,18 @@ def check_for_new_message():
     """
     global rec_buff
     while not stop_event.is_set():
-        with lock:
-            if ("+CMTI" in rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff):
-                print("New SMS message received!")
-                index = (rec_buff.decode() if isinstance(rec_buff, bytes) else rec_buff).split[','][1]
-                print("Message index: ", index)
-                send_at("AT+CMGR="+index,"OK",2)
-        time.sleep(0.1)
+            rec_buff += ser.read(ser.inWaiting())
+            lines = rec_buff.decode().split('\r\n')
+            
+            for line in lines:
+                handle_notifications(line)
+            time.sleep(1)
+
+
+def initiate_phone_call(phone_number):
+    print("This is not implemented, yet")
+        
+    
 
 def main():
     """
@@ -351,8 +379,9 @@ def main():
     """
     try:
         init()     
-        message_thread = threading.Thread(target=check_for_new_message)
+        message_thread = threading.Thread(target=check_for_notifications)
         message_thread.start()
+        print("Notification thread is running.")
         while True:
             with lock:
                 display_menu()
@@ -362,13 +391,13 @@ def main():
                 phone_number = input()
                 print("Enter message content:")
                 text_message = input()
-                SendShortMessage(phone_number, text_message)
+                send_short_message(phone_number, text_message)
             elif choice == '2':
                 print("Enter recipient's phone number (e.g., +123456789):")
                 phone_number = input()
                 print("Enter message content:")
                 text_message = input()
-                SendShortMessagePDU(phone_number, text_message)
+                send_short_message_PDU(phone_number, text_message)
             elif choice == '3':
                 get_gps_position()
             elif choice == '4':
@@ -376,6 +405,10 @@ def main():
             elif choice == '5':
                 show_all_messages()
             elif choice == '6':
+                print("Enter recipient's phone number (e.g., +123456789):")
+                phone_number = input()
+                initiate_phone_call(phone_number)
+            elif choice == '7':
                 stop_event.set()
                 message_thread.join()
                 power_down(int(POWER_KEY))
@@ -383,9 +416,13 @@ def main():
             else:
                 print("Invalid choice, please try again.\n")
     except KeyboardInterrupt:
+        stop_event.set()
+        message_thread.join()
         power_down(int(POWER_KEY))
     except Exception as e:
         print(str(e))
+        stop_event.set()
+        message_thread.join()
         power_down(int(POWER_KEY))
 
 if __name__ == '__main__':
