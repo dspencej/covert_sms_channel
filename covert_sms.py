@@ -96,7 +96,7 @@ def init():
 
     # Read configuration
     print("Parsing the configuration file.")
-    config = read_config()
+    config = parse_config()
     global POWER_KEY, MY_NUMBER, IMEI_PHONE, APN_PHONE, SERIAL_DEVICE
     POWER_KEY = int(config['power_key'])
     MY_NUMBER = config['my_number']
@@ -327,30 +327,6 @@ def parse_config():
             parameters['serial_device'] = module_settings['serial_device']
 
     return parameters
-
-def read_config():
-    """
-    Reads the configuration file and returns the configuration parameters.
-
-    Args:
-        None
-
-    Returns:
-        dict: Configuration parameters.
-    """
-    config_params = parse_config()
-    if 'power_key' not in config_params:
-        config_params['power_key'] = int(input("Enter the GPIO pin number for the power key: "))
-    if 'my_number' not in config_params:
-        config_params['my_number'] = input("Enter your phone number: ")
-    if 'imei_phone' not in config_params:
-        config_params['imei_phone'] = input("Enter the IMEI for the phone: ")
-    if 'apn_phone' not in config_params:
-        config_params['apn_phone'] = input("Enter the APN for the phone: ")
-    if 'serial_device' not in config_params:
-        config_params['serial_device'] = input("Enter the serial device (e.g., /dev/ttyUSB2): ")
-
-    return config_params
 
 def handle_notifications(notification):
     """
