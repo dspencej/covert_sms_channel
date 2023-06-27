@@ -128,7 +128,7 @@ def send_at(command, back, timeout):
         timeout (int): Time to wait for the response.
 
     Returns:
-        int: 1 if the response is as expected, 0 otherwise.
+        int: 0 if the response is as expected, 1 otherwise.
     """
     with lock:
         global rec_buff
@@ -140,13 +140,13 @@ def send_at(command, back, timeout):
         if ser.inWaiting():
             time.sleep(0.01 )
             rec_buff = ser.read(ser.inWaiting())
-        if back not in rec_buff.decode():
+        if back not in rec_buff.decode().strip():
             print(command + ' ERROR')
             print(command + ' back:\t' + rec_buff.decode())
-            return 0
+            return 1
         else:
             print(rec_buff.decode())
-            return 1
+            return 0
 
 def send_short_message(phone_number, text_message):
     """
@@ -164,12 +164,12 @@ def send_short_message(phone_number, text_message):
     send_at("AT+CMGF=1", "OK", 1)
     print("Sending Short Message")
     answer = send_at("AT+CMGS=\"" + phone_number + "\"", ">", 2)
-    if answer == 1:
+    if answer == 0:
         ser.write(text_message.encode())
         ser.write(b'\x1A')
         answer = send_at('', 'OK', 20)
 
-        if answer == 1:
+        if answer == 0:
             print('Message sent successfully.\n')
         else:
             print('Error')
@@ -200,15 +200,14 @@ def get_gps_position():
         None
     """
     global rec_buff
-    answer = 0
     print('Starting GPS session...')
     send_at('AT+CGPS=1,1', 'OK', 1)
     time.sleep(2)
     done = False
     while not done:
         answer = send_at('AT+CGPSINFO', '+CGPSINFO: ', 1)
-        if answer == 1:
-            answer = 0
+        if answer == 0:
+            answer = 1
             if ',,,,,,,,' in rec_buff.decode():
                 time.sleep(1)
                 continue
