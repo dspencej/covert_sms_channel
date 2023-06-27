@@ -459,7 +459,7 @@ def manage_calls():
             inp = input()
             if inp == 'y':
                 print("Okay, hanging up.")
-                send_at("ATH","OK",1)
+                send_at("AT+CHUP","OK",1)
                 outgoing_call = False
             elif inp == 'n':
                 print("Okay, returning to main menu.")
