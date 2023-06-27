@@ -8,6 +8,7 @@ import threading
 import configparser
 import sys
 import os
+import pygame
 
 
 # Constants
@@ -341,6 +342,12 @@ def handle_notifications(notification):
         send_at('AT+CMGF=1', 'OK', 1)
         send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
         send_at('AT+CMGL="REC UNREAD"', 'OK', 1)
+        play_sound("ping.wav")
+        
+def play_sound(sound_file):
+    pygame.mixer.init()
+    pygame.mixer.music.load(sound_file)
+    pygame.mixer.music.play()
 
 def check_for_notifications():
     """
@@ -382,6 +389,7 @@ def main():
         message_thread = threading.Thread(target=check_for_notifications)
         message_thread.start()
         print("Notification thread is running.")
+        play_sound("ping.wav")
         while True:
             with lock:
                 display_menu()
