@@ -8,10 +8,11 @@ import threading
 import configparser
 import sys
 import os
-import pygame
-
+import pygame   
 
 # Constants
+# Do not make changes here. 
+# Change the config.ini file to set these values.
 POWER_KEY = None
 MY_NUMBER = None
 IMEI_PHONE = None
@@ -248,6 +249,21 @@ def show_all_messages():
     send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
     send_at('AT+CMGL="ALL"', 'OK', 1)
 
+def show_unread_messages():
+    """
+    Shows all unread messages.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    print("Loading unread messages.")
+    send_at('AT+CMGF=1', 'OK', 1)
+    send_at('AT+CPMS="SM","SM","SM"', 'OK', 1)
+    send_at('AT+CMGL="REC UNREAD"', 'OK', 1)
+
 def display_menu():
     """
     Displays the main menu.
@@ -258,15 +274,17 @@ def display_menu():
     Returns:
         None
     """
+    print("============================================")
     print("1. Send Short Message (Text Mode)")
     print("2. Send Short Message (PDU Mode)")
     print("3. Get GPS Position")
     print("4. Delete All Messages")
-    print("5. Show All Messages")
-    print("6. Make Phone Call")
-    print("7. Exit")
+    print("5. Display All Saved Messages")
+    print("6. Display Unread Messages")
+    print("7. Make Phone Call")
+    print("8. Exit")
+    print("============================================")
     print("Enter your choice:")
-
 
 def parse_config():
     """
@@ -372,7 +390,6 @@ def check_for_notifications():
                     handle_notifications(line)
             time.sleep(1)
 
-
 def initiate_phone_call(phone_number):
     """
     Initiates a phone call to phone_number
@@ -440,10 +457,12 @@ def main():
             elif choice == '5':
                 show_all_messages()
             elif choice == '6':
+                show_unread_messages()
+            elif choice == '7':
                 print("Enter recipient's phone number (e.g., +123456789):")
                 phone_number = input()
                 initiate_phone_call(phone_number)
-            elif choice == '7':
+            elif choice == '8':
                 stop_event.set()
                 message_thread.join()
                 power_down(int(POWER_KEY))
