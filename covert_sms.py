@@ -193,7 +193,8 @@ def get_gps_position():
     while rec_null and not done:
         answer = send_at('AT+CGPSINFO', '+CGPSINFO: ', 1)
         if answer == 1:
-            if ',,,,,,' in rec_buff:
+            answer = 0
+            if ',,,,,,' in rec_buff.decode():
                 print('GPS is not ready')
                 rec_null = False
                 time.sleep(1)
@@ -201,7 +202,6 @@ def get_gps_position():
             print('Error %d' % answer)
             send_at('AT+CGPS=0', 'OK', 1)
             return False
-        sleep.wait(1)
         inp = input("Enter 'c' to continue GPS session (anything else to quit): ")
         if inp == 'c':
             done = False
