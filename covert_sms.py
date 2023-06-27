@@ -87,7 +87,7 @@ def init():
     print("It assumes that you are running a Raspberry Pi (version 3 or higher)")
     print("with a SIM7600X 4G Hat installed.")
     print("If that is not correct, then this will fail.\n")
-    print("Disclaimer: This software is provided as-is, without any warranties.")
+    print("Disclaimer: This software is provided as-is, without warranty.")
     print("Use this software at your own risk. The author and contributors")
     print("shall not be held liable for any damages or losses arising")
     print("from the use of this software. Please review the documentation")
@@ -441,26 +441,27 @@ def manage_calls():
                 print("Okay, returning to main menu.")
             
     else:
-        # No incoming or ongoing phone calls.
-        outgoing_call = False
-        incoming_call = False
         # Initiate new call?
         inp = ''
         while inp != 'y' and inp != 'n':
             print("Would you like to make an outgoing phone call? [y/n]: ")
             inp = input()
             if inp == 'y':
-                print("Enter recipient's phone number (e.g., +123456789): ")
+                print("Enter recipient's phone number (e.g., +123456789) or 'c' to cancel: ")
                 phone_number = input()
-                outgoing_call = True
-                print("Calling " + str(phone_number) + ".")
-                # Setup phone
-                # Set volume level to 3
-                send_at("AT+CLVL=3","OK",1)
-                # Switch to headphones
-                send_at("AT+CSDVC=1","OK",1)
-                # Start the call
-                send_at('ATD'+phone_number+';','OK',1)
+                if phone_number == 'c':
+                    print("Returning to main menu.")
+                    break
+                else:
+                    outgoing_call = True
+                    print("Calling " + str(phone_number) + ".")
+                    # Setup phone
+                    # Set volume level to 3
+                    send_at("AT+CLVL=3","OK",1)
+                    # Switch to headphones
+                    send_at("AT+CSDVC=1","OK",1)
+                    # Start the call
+                    send_at('ATD'+phone_number+';','OK',1)
             elif inp == 'n':
                 print("Okay, returning to main menu.")
                 
@@ -490,17 +491,25 @@ def main():
                 display_menu()
             choice = input()
             if choice == '1':
-                print("Enter recipient's phone number (e.g., +123456789):")
+                print("Enter recipient's phone number (e.g., +123456789) or 'c' to cancel:")
                 phone_number = input()
-                print("Enter message content:")
-                text_message = input()
-                send_short_message(phone_number, text_message)
+                if phone_number == 'c':
+                    print("Returning to main menu.")
+                    break
+                else:
+                    print("Enter message content:")
+                    text_message = input()
+                    send_short_message(phone_number, text_message)
             elif choice == '2':
-                print("Enter recipient's phone number (e.g., +123456789):")
+                print("Enter recipient's phone number (e.g., +123456789) or 'c' to cancel:")
                 phone_number = input()
-                print("Enter message content:")
-                text_message = input()
-                send_short_message_PDU(phone_number, text_message)
+                if phone_number == 'c':
+                    print("Returning to main menu.")
+                    break
+                else:
+                    print("Enter message content:")
+                    text_message = input()
+                    send_short_message_PDU(phone_number, text_message)
             elif choice == '3':
                 get_gps_position()
             elif choice == '4':
