@@ -75,6 +75,7 @@ def init():
     Returns:
         None
     """
+    print()
     print("This program is designed for a specific use case.")
     print("It assumes that you are running a Raspberry Pi (version 3 or higher)")
     print("with a SIM7600X 4G Hat installed.")
@@ -101,6 +102,8 @@ def init():
     send_at("AT+CGDCONT=1,\"IP\",\"" + APN_PHONE + "\"", "OK", 2)
     print("Setting IMEI.")
     send_at("AT+SIMEI=" + IMEI_PHONE, "OK", 1)
+    print("Turning on caller ID.")
+    send_at("AT+CLIP=1","OK",1)
     print("Device is initialized.\n")
 
 def send_at(command, back, timeout):
@@ -328,14 +331,14 @@ def handle_notifications(notification):
     Returns:
         None
     """
-    if "+CLIP" in notification:
+    if "RING" in notification:
         print("Incoming call detected.")
         print("Enter 'a' to answer the call or anything else to decline.")
         inp = input()
         if inp =='a':
             send_at("ATA","Ok",1)
         else:
-            send_at("AT+CHUP","OK",1)
+            send_at("ATH","OK",1)
                 
     elif "+CMTI" in notification:
         print("New text message received.")
@@ -365,14 +368,37 @@ def check_for_notifications():
             lines = rec_buff.decode().split('\r\n')
             
             for line in lines:
-                handle_notifications(line)
+                with lock:
+                    handle_notifications(line)
             time.sleep(1)
 
 
 def initiate_phone_call(phone_number):
-    print("This is not implemented, yet")
-        
-    
+    """
+    Initiates a phone call to phone_number
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+    # Setup phone
+    # Set volume level to 3
+    send_at("AT+CLVL=3","OK",1)
+    # Switch to headphones
+    send_at("AT+CSDVC=1","OK",1)
+    # Start the call
+    send_at('ATD'+phone_number+';','OK',1)
+    print("Calling " + str(phone_number) + ". Press 'h' to hangup.")
+    while True:
+        inp = input()
+        if (inp == 'h'):
+            # End the call
+            send_at("ATH","OK",1)
+            # Switch to speaker
+            send_at("AT+CSDVC=3","OK",1)
+            break
 
 def main():
     """
@@ -390,6 +416,7 @@ def main():
         message_thread.start()
         print("Notification thread is running.")
         play_sound("ping.wav")
+        print("If you did not hear the ping, please verify your audio configuration.\n")
         while True:
             with lock:
                 display_menu()
